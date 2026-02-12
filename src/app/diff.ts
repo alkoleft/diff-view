@@ -1,8 +1,15 @@
 import type { DiffStatus, FieldRow, StatusCounts, TableDiff, TableDiffRow, TableNode, TableRowNode } from './types';
+import { create } from 'jsondiffpatch';
 import { cellTextFromRow } from './normalize';
-import { createMatrix, levenshteinDistance } from './utils';
+import { createMatrix, levenshteinDistance, shorten } from './utils';
 
-export function buildFieldRows(left: Map<string, string>, right: Map<string, string>): FieldRow[] {
+const structureDiff = create({
+  arrays: {
+    detectMove: false
+  }
+});
+
+export function buildFieldRows(left: Map<string, unknown>, right: Map<string, unknown>): FieldRow[] {
   const keys = Array.from(new Set([...left.keys(), ...right.keys()]));
 
   return keys
@@ -12,10 +19,49 @@ export function buildFieldRows(left: Map<string, string>, right: Map<string, str
       let status: DiffStatus = 'unchanged';
       if (l === null && r !== null) status = 'added';
       else if (l !== null && r === null) status = 'removed';
-      else if (l !== r) status = 'changed';
-      return { key, l, r, status };
+      else if (hasStructuralDiff(l, r)) status = 'changed';
+      return { key, l: formatFieldValue(l), r: formatFieldValue(r), status };
     })
     .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function hasStructuralDiff(leftValue: unknown, rightValue: unknown): boolean {
+  try {
+    return structureDiff.diff(leftValue, rightValue) !== undefined;
+  } catch {
+    // Fallback when diff library cannot process a value shape.
+    return stableStringify(leftValue) !== stableStringify(rightValue);
+  }
+}
+
+function formatFieldValue(value: unknown): string | null {
+  if (value === null) return 'null';
+  if (value === undefined) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  if (typeof value === 'object') return shorten(stableStringify(value), 200);
+  return String(value);
+}
+
+function stableStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
+  return JSON.stringify(sortKeys(value, seen));
+}
+
+function sortKeys(value: unknown, seen: WeakSet<object>): unknown {
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value as object)) return '[Circular]';
+  seen.add(value as object);
+
+  if (Array.isArray(value)) return value.map((item) => sortKeys(item, seen));
+
+  const out: Record<string, unknown> = {};
+  Object.keys(value as Record<string, unknown>)
+    .sort()
+    .forEach((key) => {
+      out[key] = sortKeys((value as Record<string, unknown>)[key], seen);
+    });
+  return out;
 }
 
 export function buildTableDiffs(

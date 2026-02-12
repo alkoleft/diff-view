@@ -178,7 +178,7 @@ export function cellTextFromRow(row: TableRowNode | null | undefined, column: st
 export function collect(
   node: DiffNode | null,
   path: string,
-  accFields: Map<string, string>,
+  accFields: Map<string, unknown>,
   accTables: Map<string, TableNode>
 ): void {
   if (!node) return;
@@ -189,7 +189,7 @@ export function collect(
       const child = node.fields[name];
       if (child.kind === 'table') accTables.set(nextPath, child);
       else if (child.kind === 'structure') collect(child, nextPath, accFields, accTables);
-      else accFields.set(nextPath, stringifyValue(child));
+      else accFields.set(nextPath, child.value);
     });
     return;
   }
@@ -199,5 +199,5 @@ export function collect(
     return;
   }
 
-  accFields.set(path || 'ROOT', stringifyValue(node));
+  accFields.set(path || 'ROOT', node.value);
 }

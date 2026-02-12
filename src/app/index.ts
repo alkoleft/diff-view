@@ -94,8 +94,8 @@ function compare(dom: DomRefs): void {
     return;
   }
 
-  const leftFields = new Map<string, string>();
-  const rightFields = new Map<string, string>();
+  const leftFields = new Map<string, unknown>();
+  const rightFields = new Map<string, unknown>();
   const leftTables = new Map<string, TableNode>();
   const rightTables = new Map<string, TableNode>();
 
