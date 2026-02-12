@@ -7,6 +7,7 @@
     "dev": "vite",
     "demo": "vite --open /demo.html",
     "build": "tsc && vite build",
+    "build:demo:gh-pages": "tsc && vite build --base ${GH_PAGES_BASE:-/diff-view/} && cp dist/demo.html dist/index.html",
     "preview": "vite preview",
     "demo:preview": "vite preview --open /demo.html"
   },
