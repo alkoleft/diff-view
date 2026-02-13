@@ -1,0 +1,54 @@
+name: Draft Release (Standalone)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag for the release (e.g., v0.1.0)"
+        required: true
+        type: string
+      name:
+        description: "Release title (optional)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build standalone
+        run: pnpm run build:single-file
+
+      - name: Draft release with asset
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: ${{ inputs.name || inputs.tag || github.ref_name }}
+          body: |
+            Standalone HTML: https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag || github.ref_name }}/index-standalone.html
+          files: dist/index-standalone.html
