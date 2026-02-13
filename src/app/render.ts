@@ -1,14 +1,11 @@
-import { cellTextFromRow } from './normalize';
 import { countStatuses } from './diff';
-import { diffParts, partsToHtml } from './utils';
-import type { DomRefs, FieldRow, StatusCounts, TableDiff, TableDiffRow } from './types';
+import { applyDiffHtml, getCellInfo, setTextContent } from './render-helpers';
+import { DiffStatus } from './types';
+import type { DiffPart, DomRefs, FieldRow, Side, StatusCounts, TableDiff, TableDiffRow } from './types';
 
 export function renderStructures(rows: FieldRow[], dom: DomRefs): void {
   dom.structBody.innerHTML = '';
   if (!rows.length) return;
-
-  const tableWrap = document.createElement('div');
-  tableWrap.className = 'table-wrap';
 
   const table = document.createElement('table');
   table.className = 'diff-table struct-table';
@@ -28,15 +25,10 @@ export function renderStructures(rows: FieldRow[], dom: DomRefs): void {
     const tdRight = document.createElement('td');
     tdRight.className = `value${row.r === null ? ' empty' : ''}`;
 
-    if (row.status === 'changed') {
-      const parts = diffParts(row.l ?? '', row.r ?? '');
-      if (parts) {
-        tdLeft.innerHTML = partsToHtml(parts, 'left') ?? '';
-        tdRight.innerHTML = partsToHtml(parts, 'right') ?? '';
-      } else {
-        tdLeft.textContent = row.l ?? '—';
-        tdRight.textContent = row.r ?? '—';
-      }
+    if (row.status === DiffStatus.Changed) {
+      const parts = row.parts ?? null;
+      applyDiffHtml(tdLeft, parts, 'left', row.l ?? '—', false);
+      applyDiffHtml(tdRight, parts, 'right', row.r ?? '—', false);
     } else {
       tdLeft.textContent = row.l ?? '—';
       tdRight.textContent = row.r ?? '—';
@@ -47,14 +39,15 @@ export function renderStructures(rows: FieldRow[], dom: DomRefs): void {
   });
 
   table.appendChild(tbody);
-  tableWrap.appendChild(table);
-  dom.structBody.appendChild(tableWrap);
+  dom.structBody.appendChild(table);
 }
 
 export function renderTables(diffs: TableDiff[], dom: DomRefs): void {
   dom.tablesBody.innerHTML = '';
 
   diffs.forEach((tableDiff) => {
+    const columns = tableDiff.columns;
+    const rows = tableDiff.rows;
     const group = document.createElement('div');
     group.className = 'group table-group';
     group.dataset.open = 'true';
@@ -62,9 +55,12 @@ export function renderTables(diffs: TableDiff[], dom: DomRefs): void {
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'group-toggle';
-    toggle.textContent = tableDiff.title ? `${tableDiff.title} (${tableDiff.path})` : `Таблица: ${tableDiff.path}`;
+    toggle.textContent = tableDiff.title
+      ? `${tableDiff.title} (${tableDiff.path})`
+      : `Таблица: ${tableDiff.path}`;
     toggle.addEventListener('click', () => {
-      group.dataset.open = group.dataset.open === 'true' ? 'false' : 'true';
+      const isOpen = group.dataset.open === 'true';
+      group.dataset.open = isOpen ? 'false' : 'true';
     });
     group.appendChild(toggle);
 
@@ -84,7 +80,7 @@ export function renderTables(diffs: TableDiff[], dom: DomRefs): void {
     const thId = document.createElement('th');
     thId.textContent = 'ID';
     headRow.appendChild(thId);
-    tableDiff.columns.forEach((column) => {
+    columns.forEach((column) => {
       const th = document.createElement('th');
       th.textContent = column;
       headRow.appendChild(th);
@@ -93,23 +89,24 @@ export function renderTables(diffs: TableDiff[], dom: DomRefs): void {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    for (let i = 0; i < tableDiff.rows.length; i += 1) {
-      const row = tableDiff.rows[i];
-      const next = tableDiff.rows[i + 1];
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i];
+      const next = rows[i + 1];
 
-      if (row.status === 'removed' && row.pair && next && next.status === 'added' && next.groupId === row.groupId) {
-        tbody.appendChild(renderTableRow(row, tableDiff.columns));
-        tbody.appendChild(renderTableRow(next, tableDiff.columns));
+      if (
+        row.status === DiffStatus.Removed &&
+        row.pair &&
+        next &&
+        next.status === DiffStatus.Added &&
+        next.groupId === row.groupId
+      ) {
+        tbody.appendChild(renderTableRow(row, columns));
+        tbody.appendChild(renderTableRow(next, columns));
         i += 1;
-      } else if (row.status === 'changed') {
-        tbody.appendChild(renderTableRowCombined(row, tableDiff.columns));
+      } else if (row.status === DiffStatus.Changed) {
+        tbody.appendChild(renderTableRowCombined(row, columns));
       } else {
-        tbody.appendChild(renderTableRow(row, tableDiff.columns));
-      }
-
-      const nextRow = tableDiff.rows[i + 1];
-      if (nextRow && nextRow.groupId !== row.groupId) {
-        tbody.appendChild(renderSpacerRow(tableDiff.columns.length + 1));
+        tbody.appendChild(renderTableRow(row, columns));
       }
     }
 
@@ -124,36 +121,72 @@ export function renderTables(diffs: TableDiff[], dom: DomRefs): void {
 function renderTableRow(row: TableDiffRow, columns: string[]): HTMLTableRowElement {
   const tr = document.createElement('tr');
   tr.className = `row-${row.status}`;
-  if (row.pair && row.status === 'removed') tr.className += ' pair-top';
-  if (row.pair && row.status === 'added') tr.className += ' pair-bottom';
+  if (row.pair && row.status === DiffStatus.Removed) {
+    tr.className += ' pair-top';
+  }
+  if (row.pair && row.status === DiffStatus.Added) {
+    tr.className += ' pair-bottom';
+  }
 
   const tdId = document.createElement('td');
   tdId.className = 'field-path';
-  tdId.textContent = row.id;
+  if (row.status === DiffStatus.Moved && row.moveFromIndex !== undefined) {
+    const moveHint = document.createElement('span');
+    moveHint.className = 'move-hint';
+    moveHint.textContent = `⤵ из ${row.moveFromIndex + 1}`;
+    moveHint.title = `перемещено из позиции ${row.moveFromIndex + 1}`;
+    tdId.appendChild(moveHint);
+    tdId.append(' ');
+  }
+  tdId.append(row.id);
   tr.appendChild(tdId);
 
   columns.forEach((column) => {
     const td = document.createElement('td');
     td.className = 'value';
 
-    const val = cellTextFromRow(row.l ?? row.r, column);
-    if ((row.status === 'removed' || row.status === 'added') && row.pair) {
-      const leftVal = row.l ? cellTextFromRow(row.l, column) : cellTextFromRow(row.pair, column);
-      const rightVal = row.r ? cellTextFromRow(row.r, column) : cellTextFromRow(row.pair, column);
-      const parts = diffParts(leftVal, rightVal);
-      if (parts) {
-        td.innerHTML = row.status === 'removed' ? (partsToHtml(parts, 'left') ?? '') : (partsToHtml(parts, 'right') ?? '');
-      } else {
-        td.textContent = val || '—';
-      }
+    const sourceRow = row.l ?? row.r;
+    const sourceInfo = getCellInfo(sourceRow, column);
+    const diffInfo = row.cellDiffs?.[column];
+    const hasDiff = hasPartsDiff(diffInfo?.parts ?? null);
+    const isPairRow =
+      (row.status === DiffStatus.Removed || row.status === DiffStatus.Added || row.status === DiffStatus.Moved) &&
+      row.pair;
+
+    if (row.status === DiffStatus.Moved && row.pair && diffInfo && hasDiff) {
+      const left = document.createElement('div');
+      left.className = 'cell-left';
+
+      const right = document.createElement('div');
+      right.className = 'cell-right';
+      if (diffInfo.leftNull) left.className += ' empty';
+      if (diffInfo.rightNull) right.className += ' empty';
+
+      applyDiffHtml(left, diffInfo.parts, 'left', diffInfo.leftText, diffInfo.leftNull);
+      applyDiffHtml(right, diffInfo.parts, 'right', diffInfo.rightText, diffInfo.rightNull);
+
+      td.className += ' cell-compare';
+      td.append(left, right);
+    } else if (isPairRow && diffInfo) {
+      const side: Side = row.status === DiffStatus.Removed || row.moveRole === 'from' ? 'left' : 'right';
+      const fallbackText = side === 'left' ? diffInfo.leftText : diffInfo.rightText;
+      const isNull = side === 'left' ? diffInfo.leftNull : diffInfo.rightNull;
+      applyDiffHtml(td, diffInfo.parts, side, fallbackText, isNull);
+      if (isNull) td.className += ' empty';
     } else {
-      td.textContent = val || '—';
+      setTextContent(td, sourceInfo.text, sourceInfo.isNull);
+      if (sourceInfo.isNull) td.className += ' empty';
     }
 
     tr.appendChild(td);
   });
 
   return tr;
+}
+
+function hasPartsDiff(parts: DiffPart[] | null): boolean {
+  if (!parts) return false;
+  return parts.some((part) => part.type !== 'eq');
 }
 
 function renderTableRowCombined(row: TableDiffRow, columns: string[]): HTMLTableRowElement {
@@ -169,27 +202,34 @@ function renderTableRowCombined(row: TableDiffRow, columns: string[]): HTMLTable
     const td = document.createElement('td');
     td.className = 'value';
 
-    const leftVal = row.l ? cellTextFromRow(row.l, column) : '';
-    const rightVal = row.r ? cellTextFromRow(row.r, column) : '';
-    const parts = diffParts(leftVal, rightVal);
+    const diffInfo = row.cellDiffs?.[column];
+    const leftInfo = diffInfo
+      ? { text: diffInfo.leftText, isNull: diffInfo.leftNull }
+      : getCellInfo(row.l, column);
+    const rightInfo = diffInfo
+      ? { text: diffInfo.rightText, isNull: diffInfo.rightNull }
+      : getCellInfo(row.r, column);
+    const parts = diffInfo?.parts ?? null;
 
-    if (leftVal === rightVal) {
+    if (leftInfo.text === rightInfo.text) {
       td.className += ' cell-compare-single';
-      td.textContent = leftVal || rightVal || '—';
+      if (leftInfo.isNull && rightInfo.isNull) {
+        td.className += ' empty';
+        td.textContent = '';
+      } else {
+        td.textContent = leftInfo.text || rightInfo.text || '—';
+      }
     } else {
       const left = document.createElement('div');
       left.className = 'cell-left';
 
       const right = document.createElement('div');
       right.className = 'cell-right';
+      if (leftInfo.isNull) left.className += ' empty';
+      if (rightInfo.isNull) right.className += ' empty';
 
-      if (parts) {
-        left.innerHTML = partsToHtml(parts, 'left') ?? '';
-        right.innerHTML = partsToHtml(parts, 'right') ?? '';
-      } else {
-        left.textContent = leftVal || '—';
-        right.textContent = rightVal || '—';
-      }
+      applyDiffHtml(left, parts, 'left', leftInfo.text, leftInfo.isNull);
+      applyDiffHtml(right, parts, 'right', rightInfo.text, rightInfo.isNull);
 
       td.className += ' cell-compare';
       td.append(left, right);
@@ -201,22 +241,23 @@ function renderTableRowCombined(row: TableDiffRow, columns: string[]): HTMLTable
   return tr;
 }
 
-function renderSpacerRow(colspan: number): HTMLTableRowElement {
-  const tr = document.createElement('tr');
-  tr.className = 'row-spacer';
-  const td = document.createElement('td');
-  td.colSpan = colspan;
-  tr.appendChild(td);
-  return tr;
-}
-
 function renderGroupSummary(counts: StatusCounts): HTMLElement {
   const summary = document.createElement('div');
   summary.className = 'group-summary';
-  summary.innerHTML =
-    `<span class="chip changed"><strong>${counts.changed}</strong> изменено</span>` +
-    `<span class="chip added"><strong>${counts.added}</strong> добавлено</span>` +
-    `<span class="chip removed"><strong>${counts.removed}</strong> удалено</span>` +
-    `<span class="chip unchanged"><strong>${counts.unchanged}</strong> без изменений</span>`;
+  summary.appendChild(createChip('changed', counts.changed, 'изменено'));
+  summary.appendChild(createChip('added', counts.added, 'добавлено'));
+  summary.appendChild(createChip('removed', counts.removed, 'удалено'));
+  summary.appendChild(createChip('moved', counts.moved, 'перемещено'));
+  summary.appendChild(createChip('unchanged', counts.unchanged, 'без изменений'));
   return summary;
+}
+
+function createChip(cls: string, value: number, label: string): HTMLElement {
+  const chip = document.createElement('span');
+  chip.className = `chip ${cls}`;
+  const strong = document.createElement('strong');
+  strong.textContent = String(value);
+  chip.appendChild(strong);
+  chip.append(` ${label}`);
+  return chip;
 }

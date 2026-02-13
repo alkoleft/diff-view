@@ -7,7 +7,13 @@ export interface DiffPart {
 
 export type Side = 'left' | 'right';
 
-export type DiffStatus = 'unchanged' | 'added' | 'removed' | 'changed';
+export enum DiffStatus {
+  Unchanged = 'unchanged',
+  Added = 'added',
+  Removed = 'removed',
+  Changed = 'changed',
+  Moved = 'moved'
+}
 
 export interface ValueNode {
   kind: 'value';
@@ -25,6 +31,7 @@ export interface TableRowNode {
   cells: Record<string, DiffNode>;
   hasExplicitId: boolean;
   __sigCache?: Record<string, string>;
+  __cellCache?: Record<string, string>;
 }
 
 export interface TableNode {
@@ -47,6 +54,15 @@ export interface FieldRow {
   l: string | null;
   r: string | null;
   status: DiffStatus;
+  parts?: DiffPart[] | null;
+}
+
+export interface CellDiffInfo {
+  leftText: string;
+  rightText: string;
+  leftNull: boolean;
+  rightNull: boolean;
+  parts: DiffPart[] | null;
 }
 
 export interface TableDiffRow {
@@ -56,6 +72,11 @@ export interface TableDiffRow {
   status: DiffStatus;
   groupId: string;
   pair?: TableRowNode;
+  moveId?: string;
+  moveRole?: 'from' | 'to';
+  moveFromIndex?: number;
+  moveToIndex?: number;
+  cellDiffs?: Record<string, CellDiffInfo>;
 }
 
 export interface TableDiff {
@@ -69,6 +90,7 @@ export interface StatusCounts {
   changed: number;
   added: number;
   removed: number;
+  moved: number;
   unchanged: number;
 }
 

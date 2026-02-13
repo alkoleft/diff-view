@@ -9,20 +9,24 @@
 
 Проект ориентирован на использование внутри инструментов тестирования и анализа для 1С.
 
+## Ограничения использования
+
+- Windows: `1С:Предприятие 8` версии 8.3.14+.
+- Linux: `1С:Предприятие 8` версии 8.3.24+.
+
 ## Использование в проектах
 
-- Используется: https://github.com/bia-technologies/rat
-- Планируется использование:
-  - https://github.com/bia-technologies/yaxunit
-  - https://github.com/bia-technologies/edt-test-runner
+- Используется: [RAT](https://github.com/bia-technologies/rat)
+- Планируется использование: [YAxUnit](https://github.com/bia-technologies/yaxunit)
+- Планируется использование: [edt-test-runner (YAxUnit)](https://github.com/bia-technologies/edt-test-runner)
 
 ## Возможности
 
-- Сравнение объектов с учетом структуры.
-- Сравнение табличных данных с выравниванием строк.
-- Выявление `added` / `removed` / `changed` / `unchanged`.
-- Кастомная визуализация diff.
-- Demo-страница с крупным набором данных (`demo.html`).
+- Сравнение структурированных объектов (включая вложенные JSON).
+- Сравнение табличных частей с выравниванием строк и подсветкой добавлений/удалений/изменений.
+- Подсветка отличий внутри строковых значений.
+- Классификация изменений: `added` / `removed` / `changed` / `unchanged` / `moved`.
+- Гибкая визуализация diff с разделением “лево/право”.
 
 ## Технологии
 
@@ -30,34 +34,34 @@
 - Vite
 - jsondiffpatch (для структурного сравнения полей)
 
-## Запуск
+## Установка и запуск
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Demo:
+Demo (откроет `/demo.html`):
 
 ```bash
 pnpm demo
 ```
 
+## Скрипты
+
+- `pnpm dev` — локальная разработка.
+- `pnpm demo` — запуск demo-страницы.
+- `pnpm preview` — просмотр собранного приложения.
+- `pnpm demo:preview` — просмотр demo-страницы после сборки.
+- `pnpm build` — обычная сборка.
+- `pnpm build:demo:gh-pages` — сборка demo под GitHub Pages (с учетом `GH_PAGES_BASE`).
+- `pnpm build:single-file` — сборка single-file для встраивания одним HTML.
+- `pnpm test` — запуск тестов в watch-режиме.
+- `pnpm test:run` — однократный прогон тестов.
+
 ## Сборка
 
-Обычная сборка:
-
-```bash
-pnpm build
-```
-
-Сборка single-file (под встраивание одним HTML):
-
-```bash
-pnpm vite build --mode single-file
-```
-
-После single-file сборки плагин создает `dist/index-standalone.html`.
+После single-file сборки создается `dist/index-standalone.html`.
 
 ## Публичный API для интеграции
 
@@ -66,7 +70,6 @@ pnpm vite build --mode single-file
 - `window.setLeftVersion(jsonOrString)`
 - `window.setRightVersion(jsonOrString)`
 - `window.setVersions(leftJsonOrString, rightJsonOrString)`
-- `window.loadSample()`
 
 Это позволяет передавать данные из хоста (в т.ч. из 1С через встроенный браузер/HTML-документ).
 
@@ -81,4 +84,4 @@ pnpm vite build --mode single-file
 
 ## Лицензия
 
-Пока не указана.
+LGPL-3.0. См. `LICENCE`.

@@ -58,6 +58,16 @@ export const sampleLeft = {
       name: 'Таблица производственных показателей',
       columns: bigTableColumns,
       rows: leftBigRows
+    },
+    'ПеремещенияСтрок': {
+      type: 'table',
+      name: 'Пример перемещений',
+      columns: ['Код', 'Описание'],
+      rows: [
+        { id: 'A1', cells: { 'Код': 'A1', 'Описание': 'Строка 1' } },
+        { id: 'B2', cells: { 'Код': 'B2', 'Описание': 'Строка 2' } },
+        { id: 'C3', cells: { 'Код': 'C3', 'Описание': 'Строка 3' } }
+      ]
     }
   }
 };
@@ -83,6 +93,16 @@ export const sampleRight = {
       name: 'Таблица производственных показателей',
       columns: bigTableColumns,
       rows: rightBigRows
+    },
+    'ПеремещенияСтрок': {
+      type: 'table',
+      name: 'Пример перемещений',
+      columns: ['Код', 'Описание'],
+      rows: [
+        { id: 'B2', cells: { 'Код': 'B2', 'Описание': 'Строка 2' } },
+        { id: 'A1', cells: { 'Код': 'A1', 'Описание': 'Строка 1' } },
+        { id: 'C3', cells: { 'Код': 'C3', 'Описание': 'Строка 3' } }
+      ]
     }
   }
 };

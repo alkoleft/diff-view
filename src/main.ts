@@ -1,9 +1,7 @@
-import './style.css';
 import { initApp } from './app/index';
 
-const root = document.getElementById('app');
-if (!root) {
-  throw new Error('Не найден контейнер #app');
-}
+console.log('Init app 1')
 
-initApp(root);
+initApp();
+
+console.log('Init app 2')

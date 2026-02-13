@@ -1,10 +1,11 @@
 import type { DiffPart, Side } from './types';
+import { get as fastLevenshtein } from 'fast-levenshtein';
 
-export function createMatrix<T>(rows: number, cols: number, fill: T): T[][] {
+export function createMatrix<T>(rows: number, cols: number, fill: () => T): T[][] {
   const matrix: T[][] = new Array(rows);
   for (let r = 0; r < rows; r += 1) {
     const row: T[] = new Array(cols);
-    for (let c = 0; c < cols; c += 1) row[c] = fill;
+    for (let c = 0; c < cols; c += 1) row[c] = fill();
     matrix[r] = row;
   }
   return matrix;
@@ -25,7 +26,7 @@ export function diffParts(s1: unknown, s2: unknown): DiffPart[] | null {
   if (n * m > 200000) return null;
   if (n > 4000 || m > 4000) return null;
 
-  const matrix = createMatrix(n + 1, m + 1, 0);
+  const matrix = createMatrix(n + 1, m + 1, () => 0);
   for (let i = 1; i <= n; i += 1) {
     for (let j = 1; j <= m; j += 1) {
       if (left[i - 1] === right[j - 1]) matrix[i][j] = matrix[i - 1][j - 1] + 1;
@@ -64,24 +65,7 @@ export function diffParts(s1: unknown, s2: unknown): DiffPart[] | null {
 }
 
 export function levenshteinDistance(a: string, b: string): number {
-  if (a === b) return 0;
-  const n = a.length;
-  const m = b.length;
-  if (n === 0) return m;
-  if (m === 0) return n;
-
-  const dp = createMatrix(n + 1, m + 1, 0);
-  for (let i = 0; i <= n; i += 1) dp[i][0] = i;
-  for (let j = 0; j <= m; j += 1) dp[0][j] = j;
-
-  for (let i = 1; i <= n; i += 1) {
-    for (let j = 1; j <= m; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
-    }
-  }
-
-  return dp[n][m];
+  return fastLevenshtein(a, b);
 }
 
 export function escapeHtml(str: string): string {

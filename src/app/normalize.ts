@@ -112,8 +112,7 @@ export function stringifyValue(node: DiffNode | null | undefined): string {
   if (!node) return '';
 
   if (node.kind === 'value') {
-    if (node.value === null) return 'null';
-    if (node.value === undefined) return 'undefined';
+    if (node.value === null || node.value === undefined) return '';
     if (typeof node.value === 'string') return node.value;
     return String(node.value);
   }
@@ -158,21 +157,30 @@ function nodeToPlain(node: DiffNode | unknown): unknown {
 
 export function cellTextFromRow(row: TableRowNode | null | undefined, column: string): string {
   if (!row?.cells) return '';
+  if (!row.__cellCache) row.__cellCache = {};
+  if (row.__cellCache[column] !== undefined) return row.__cellCache[column];
   const value = row.cells[column];
 
+  let text: string;
   if (value && typeof value === 'object') {
     const maybeNode = value as Partial<DiffNode>;
-    if (typeof maybeNode.kind === 'string') return stringifyValue(value as DiffNode);
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
+    if (typeof maybeNode.kind === 'string') {
+      text = stringifyValue(value as DiffNode);
+    } else {
+      try {
+        text = JSON.stringify(value);
+      } catch {
+        text = String(value);
+      }
     }
+  } else if (value === null || value === undefined) {
+    text = '';
+  } else {
+    text = String(value);
   }
 
-  if (value === null) return 'null';
-  if (value === undefined) return '';
-  return String(value);
+  row.__cellCache[column] = text;
+  return text;
 }
 
 export function collect(

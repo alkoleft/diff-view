@@ -8,19 +8,26 @@
     "demo": "vite --open /demo.html",
     "build": "tsc && vite build",
     "build:demo:gh-pages": "tsc && vite build --base ${GH_PAGES_BASE:-/diff-view/} && cp dist/demo.html dist/index.html",
+    "build:single-file": "tsc && vite build --mode single-file",
+    "test": "vitest",
+    "test:run": "vitest run",
     "preview": "vite preview",
     "demo:preview": "vite preview --open /demo.html"
   },
   "devDependencies": {
+    "@types/fast-levenshtein": "^0.0.4",
     "@types/node": "^24.5.2",
+    "sass": "^1.97.3",
     "terser": "^5.0.0",
     "typescript": "~5.9.3",
-    "vite": "^8.0.0-beta.13"
+    "vite": "^8.0.0-beta.13",
+    "vitest": "^3.0.0"
   },
   "overrides": {
     "vite": "^8.0.0-beta.13"
   },
   "dependencies": {
+    "fast-levenshtein": "^3.0.0",
     "jsondiffpatch": "^0.7.3"
   }
 }

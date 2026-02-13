@@ -9,10 +9,14 @@ export default defineConfig(({ mode }) => {
     base: './',
     build: {
       rollupOptions: {
-        input: {
-          main: resolve(__dirname, 'index.html'),
-          demo: resolve(__dirname, 'demo.html')
-        },
+        input: isSingleFile
+          ? {
+              main: resolve(__dirname, 'index.html')
+            }
+          : {
+              main: resolve(__dirname, 'index.html'),
+              demo: resolve(__dirname, 'demo.html')
+            },
         output: {
           entryFileNames: isSingleFile ? 'assets/[name].js' : 'assets/[name]-[hash].js',
           chunkFileNames: isSingleFile ? 'assets/[name].js' : 'assets/[name]-[hash].js',
@@ -23,8 +27,9 @@ export default defineConfig(({ mode }) => {
       target: 'es2018',
       minify: 'terser',
       sourcemap: true,
+      codeSplitting: isSingleFile ? false : true,
       cssCodeSplit: false,
-      assetsInlineLimit: isSingleFile ? 0 : 4096,
+      assetsInlineLimit: isSingleFile ? 100000000 : 4096,
       outDir: 'dist'
     },
     server: {
